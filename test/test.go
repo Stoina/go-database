@@ -37,5 +37,19 @@ func main() {
 
 	fmt.Println("Successfully connected to database " + dbConnection.Host + "/" + dbConnection.DatabaseName)
 
+	result, err := dbConnection.Query("select * from golangtest")
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	resultAsJSON, err := result.ConvertToJSON()
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println(resultAsJSON)
+
 	dbConnection.Database.Close()
 }
