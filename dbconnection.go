@@ -1,4 +1,4 @@
-package database
+package db
 
 import (
 	"database/sql"
@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"net/url"
 
-	dbmodel "github.com/Stoina/go-database/model"
+	dbmodel "github.com/Stoina/go-database/model/query"
+
+	_ "github.com/denisenkom/go-mssqldb"
+	_ "github.com/lib/pq"
 )
 
-// DBConnection exported
-// DBConnection ...
-type DBConnection struct {
+// Connection exported
+// Connection ...
+type Connection struct {
 	DriverName   string
 	Host         string
 	Port         int
@@ -26,9 +29,9 @@ type DBConnection struct {
 
 // OpenDBConnection exported
 // OpenDBConnection ...
-func OpenDBConnection(driverName string, host string, port int, user string, password string, database string) (*dbmodel.DBConnection, error) {
+func OpenDBConnection(driverName string, host string, port int, user string, password string, database string) (*Connection, error) {
 
-	dbConnection, err := dbmodel.NewDBConnection(driverName, host, port, user, password, database)
+	dbConnection, err := NewDBConnection(driverName, host, port, user, password, database)
 
 	if err != nil {
 		return nil, err
@@ -47,12 +50,12 @@ func OpenDBConnection(driverName string, host string, port int, user string, pas
 
 // NewDBConnection exported
 // NewDBConnection ...
-func NewDBConnection(driverName string, host string, port int, user string, password string, database string) (*DBConnection, error) {
+func NewDBConnection(driverName string, host string, port int, user string, password string, database string) (*Connection, error) {
 
 	connectionString := getConnectionString(driverName, host, port, user, password, database)
 
 	if connectionString != "" {
-		return &DBConnection{
+		return &Connection{
 			DriverName:   driverName,
 			Host:         host,
 			Port:         port,
@@ -68,6 +71,13 @@ func NewDBConnection(driverName string, host string, port int, user string, pass
 	errorText := "No known database driver name given: " + driverName
 
 	return nil, errors.New(errorText)
+}
+
+// Query exported
+// Query ...
+// Returns selected rows as json string
+func (dbConn *Connection) Query(query string) (*dbmodel.QueryResult, error) {
+	return executeQuery(query, dbConn.Database)
 }
 
 func getConnectionString(driverName string, host string, port int, user string, password string, database string) string {
@@ -95,4 +105,55 @@ func getMSSQLConnectionString(host string, port int, user string, password strin
 	}
 
 	return u.String()
+}
+
+func executeQuery(query string, db *sql.DB) (*dbmodel.QueryResult, error) {
+	rows, err := db.Query(query)
+
+	if err != nil {
+		return nil, err
+	}
+
+	columns, err := rows.Columns()
+
+	if err != nil {
+		return nil, err
+	}
+
+	columnCount := len(columns)
+
+	tableData := make([]map[string]interface{}, 0)
+	values := make([]interface{}, columnCount)
+	valuePtrs := make([]interface{}, columnCount)
+
+	for rows.Next() {
+
+		for i := 0; i < columnCount; i++ {
+			valuePtrs[i] = &values[i]
+		}
+
+		rows.Scan(valuePtrs...)
+
+		entry := make(map[string]interface{})
+
+		for i, col := range columns {
+
+			var v interface{}
+			val := values[i]
+
+			b, ok := val.([]byte)
+
+			if ok {
+				v = string(b)
+			} else {
+				v = val
+			}
+
+			entry[col] = v
+		}
+
+		tableData = append(tableData, entry)
+	}
+
+	return &dbmodel.QueryResult{Data: tableData}, nil
 }
