@@ -1,18 +1,18 @@
-package dbmodel
+package db
 
 import (
 	"encoding/json"
 )
 
-// QueryResult exported
-// QueryResult ...
-type QueryResult struct {
+// Result exported
+// Result ...
+type Result struct {
 	Data []map[string]interface{}
 }
 
 // ConvertToJSON exported
 // ConvertToJSON ...
-func (result *QueryResult) ConvertToJSON() (string, error) {
+func (result *Result) ConvertToJSON() (string, error) {
 
 	jsonBytes, err := json.Marshal(result.Data)
 
@@ -22,3 +22,4 @@ func (result *QueryResult) ConvertToJSON() (string, error) {
 
 	return string(jsonBytes), nil
 }
+

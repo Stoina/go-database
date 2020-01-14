@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
-
-	dbmodel "github.com/Stoina/go-database/model/query"
+	"strconv"
 
 	_ "github.com/denisenkom/go-mssqldb"
 	_ "github.com/lib/pq"
@@ -76,8 +76,14 @@ func NewDBConnection(driverName string, host string, port int, user string, pass
 // Query exported
 // Query ...
 // Returns selected rows as json string
-func (dbConn *Connection) Query(query string) (*dbmodel.QueryResult, error) {
+func (dbConn *Connection) Query(query string) (*Result, error) {
 	return executeQuery(query, dbConn.Database)
+}
+
+// Insert exported
+// Insert new row and returns inserted row
+func (dbConn *Connection) Insert(insertStatement *InsertStatement) (*Result, error) {
+	return executeInsertStatement(insertStatement, dbConn)
 }
 
 func getConnectionString(driverName string, host string, port int, user string, password string, database string) string {
@@ -107,7 +113,9 @@ func getMSSQLConnectionString(host string, port int, user string, password strin
 	return u.String()
 }
 
-func executeQuery(query string, db *sql.DB) (*dbmodel.QueryResult, error) {
+func executeQuery(query string, db *sql.DB) (*Result, error) {
+	log.Println("Execute new query: " + query)
+
 	rows, err := db.Query(query)
 
 	if err != nil {
@@ -155,5 +163,57 @@ func executeQuery(query string, db *sql.DB) (*dbmodel.QueryResult, error) {
 		tableData = append(tableData, entry)
 	}
 
-	return &dbmodel.QueryResult{Data: tableData}, nil
+	return &Result{Data: tableData}, nil
+}
+
+func executeInsertStatement(insertStatement *InsertStatement, dbConn *Connection) (*Result, error) {
+
+	stringInsertStatement := insertStatement.ToStringStatement()
+
+	log.Println("Execute new insert statement: " + stringInsertStatement)
+
+	_, err := dbConn.Database.Exec(stringInsertStatement)
+
+	if err != nil {
+		return nil, err
+	}
+
+	idColumnName, err := readIDColumnFromTable(insertStatement.Table, dbConn)
+	
+	if err != nil {
+		return nil, err
+	}
+
+	maxID, err := readMaxIDFromTable(insertStatement.Table, idColumnName, dbConn)
+
+	if err != nil {
+		return nil, err
+	}
+
+	insertedRowQuery := "select * from \"" + insertStatement.Table + "\" where \"" + idColumnName + "\" = " + strconv.Itoa(maxID)
+
+	return executeQuery(insertedRowQuery, dbConn.Database)
+}
+
+func readIDColumnFromTable(tableName string, dbConn *Connection) (string, error) {
+	columnNames, err := ReadColumnNamesFromTable(dbConn, tableName)
+	
+	if err != nil {
+		return "", err
+	}
+
+	return columnNames[0], nil
+}
+
+func readMaxIDFromTable(tableName string, idColumnName string, dbConn *Connection) (int, error) {
+	var maxID int 
+
+	maxIDRow := dbConn.Database.QueryRow("select max(\"" + idColumnName + "\") from \"" + tableName + "\"")
+	err := maxIDRow.Scan(&maxID)
+
+	if err != nil {
+		return -1, err
+	}
+	
+	return maxID, nil
 }
