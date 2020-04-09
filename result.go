@@ -7,12 +7,13 @@ import (
 // Result exported
 // Result ...
 type Result struct {
-	Data []map[string]interface{}
+	RowCount int
+	Data     []map[string]interface{}
 }
 
-// ConvertToJSON exported
-// ConvertToJSON ...
-func (result *Result) ConvertToJSON() (string, error) {
+// ConvertDataToJSONString exported
+// ...
+func (result *Result) ConvertDataToJSONString() (string, error) {
 
 	jsonBytes, err := json.Marshal(result.Data)
 
@@ -22,4 +23,3 @@ func (result *Result) ConvertToJSON() (string, error) {
 
 	return string(jsonBytes), nil
 }
-

@@ -86,6 +86,12 @@ func (dbConn *Connection) Insert(insertStatement *InsertStatement) (*Result, err
 	return executeInsertStatement(insertStatement, dbConn)
 }
 
+// CallProcedure exported
+// ...
+func (dbConn *Connection) CallProcedure(procedureName string, parameter []interface{}) (*Result, error) {
+	return executeProcedureCall(procedureName, parameter, dbConn)
+}
+
 func getConnectionString(driverName string, host string, port int, user string, password string, database string) string {
 
 	switch driverName {
@@ -134,6 +140,7 @@ func executeQuery(query string, db *sql.DB) (*Result, error) {
 	values := make([]interface{}, columnCount)
 	valuePtrs := make([]interface{}, columnCount)
 
+	rowCount := 0
 	for rows.Next() {
 
 		for i := 0; i < columnCount; i++ {
@@ -161,9 +168,10 @@ func executeQuery(query string, db *sql.DB) (*Result, error) {
 		}
 
 		tableData = append(tableData, entry)
+		rowCount++
 	}
 
-	return &Result{Data: tableData}, nil
+	return &Result{RowCount: rowCount, Data: tableData}, nil
 }
 
 func executeInsertStatement(insertStatement *InsertStatement, dbConn *Connection) (*Result, error) {
@@ -179,7 +187,7 @@ func executeInsertStatement(insertStatement *InsertStatement, dbConn *Connection
 	}
 
 	idColumnName, err := readIDColumnFromTable(insertStatement.Table, dbConn)
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -195,9 +203,36 @@ func executeInsertStatement(insertStatement *InsertStatement, dbConn *Connection
 	return executeQuery(insertedRowQuery, dbConn.Database)
 }
 
+func executeProcedureCall(procedureName string, parameter []interface{}, dbConn *Connection) (*Result, error) {
+
+	parameterCount := len(parameter)
+	parameterString := ""
+
+	for i := 0; i < parameterCount; i++ {
+		parameterValue := fmt.Sprintf("%v", parameter[i])
+
+		if i < parameterCount-1 {
+			parameterString += "'" + parameterValue + "', "
+		} else {
+			parameterString += "'" + parameterValue + "'"
+		}
+
+	}
+
+	procedureCall := "call " + procedureName + "(" + parameterString + ")"
+
+	_, err := dbConn.Database.Exec(procedureCall)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
 func readIDColumnFromTable(tableName string, dbConn *Connection) (string, error) {
 	columnNames, err := ReadColumnNamesFromTable(dbConn, tableName)
-	
+
 	if err != nil {
 		return "", err
 	}
@@ -206,7 +241,7 @@ func readIDColumnFromTable(tableName string, dbConn *Connection) (string, error)
 }
 
 func readMaxIDFromTable(tableName string, idColumnName string, dbConn *Connection) (int, error) {
-	var maxID int 
+	var maxID int
 
 	maxIDRow := dbConn.Database.QueryRow("select max(\"" + idColumnName + "\") from \"" + tableName + "\"")
 	err := maxIDRow.Scan(&maxID)
@@ -214,6 +249,6 @@ func readMaxIDFromTable(tableName string, idColumnName string, dbConn *Connectio
 	if err != nil {
 		return -1, err
 	}
-	
+
 	return maxID, nil
 }
