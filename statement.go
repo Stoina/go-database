@@ -8,22 +8,22 @@ import (
 // ...
 type InsertStatement struct {
 	Columns []string
-	Values 	[]interface{}
-	Table 	string
+	Values  []interface{}
+	Table   string
 }
 
 // NewInsertStatement exported
 // ...
 func NewInsertStatement(table string, columns []string, values []interface{}) *InsertStatement {
 	return &InsertStatement{
-		Table: table,
+		Table:   table,
 		Columns: columns,
-		Values: values}
+		Values:  values}
 }
 
-// ToStringStatement exported
+// ToString exported
 // ...
-func (stat *InsertStatement) ToStringStatement() string {
+func (stat *InsertStatement) ToString() string {
 
 	columnsCount := len(stat.Columns)
 
@@ -31,7 +31,7 @@ func (stat *InsertStatement) ToStringStatement() string {
 	valuesSection := ""
 
 	for i := 0; i < columnsCount; i++ {
-		
+
 		stringValue := fmt.Sprintf("%v", stat.Values[i])
 
 		if i == 0 {

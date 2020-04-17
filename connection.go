@@ -120,7 +120,6 @@ func getMSSQLConnectionString(host string, port int, user string, password strin
 }
 
 func executeQuery(query string, db *sql.DB) (*Result, error) {
-	log.Println("Execute new query: " + query)
 
 	rows, err := db.Query(query)
 
@@ -176,7 +175,7 @@ func executeQuery(query string, db *sql.DB) (*Result, error) {
 
 func executeInsertStatement(insertStatement *InsertStatement, dbConn *Connection) (*Result, error) {
 
-	stringInsertStatement := insertStatement.ToStringStatement()
+	stringInsertStatement := insertStatement.ToString()
 
 	log.Println("Execute new insert statement: " + stringInsertStatement)
 
@@ -221,11 +220,13 @@ func executeProcedureCall(procedureName string, parameter []interface{}, dbConn 
 
 	procedureCall := "call " + procedureName + "(" + parameterString + ")"
 
-	_, err := dbConn.Database.Exec(procedureCall)
+	res, err := dbConn.Database.Exec(procedureCall)
 
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println(res)
 
 	return nil, nil
 }
